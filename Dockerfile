@@ -8,9 +8,9 @@ RUN ./gradlew bootJar --no-daemon
 
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
-RUN addgroup -S safewhale && adduser -S safewhale -G safewhale \
-    && mkdir -p /app/uploads && chown -R safewhale:safewhale /app
+RUN addgroup -S dasigochim && adduser -S dasigochim -G dasigochim \
+    && mkdir -p /app/uploads && chown -R dasigochim:dasigochim /app
 COPY --from=builder /workspace/build/libs/*.jar app.jar
-USER safewhale
+USER dasigochim
 EXPOSE 8080
 ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "/app/app.jar"]

@@ -1,4 +1,4 @@
-# SafeWhale Backend
+# Dasigochim Backend
 
 안전고래 캠퍼스 안전 신고 서비스의 Spring Boot API 서버입니다.
 
@@ -130,9 +130,9 @@ docker compose up -d postgres
 |---|---|---|
 | `BACKEND_PORT` | 호스트에 공개할 API 포트 | `8080` |
 | `POSTGRES_PORT` | 호스트에 공개할 PostgreSQL 포트 | `5432` |
-| `POSTGRES_DB` | DB 이름 | `safewhale` |
-| `POSTGRES_USER` | DB 사용자 | `safewhale` |
-| `POSTGRES_PASSWORD` | DB 비밀번호 | `safewhale` |
+| `POSTGRES_DB` | DB 이름 | `dasigochim` |
+| `POSTGRES_USER` | DB 사용자 | `dasigochim` |
+| `POSTGRES_PASSWORD` | DB 비밀번호 | `dasigochim` |
 | `JWT_SECRET` | JWT HMAC Base64 키 (`openssl rand -base64 64`) | 필수 |
 | `CORS_ALLOWED_ORIGINS` | 허용할 프론트 Origin 목록 | `http://localhost:5175` |
 | `GOOGLE_CLIENT_ID` | Google ID token audience 검증용 Web Client ID | 필수 |

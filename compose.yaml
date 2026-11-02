@@ -1,16 +1,16 @@
-name: safewhale
+name: dasigochim
 
 services:
   backend:
-    image: safewhale/backend:${IMAGE_TAG:-local}
+    image: dasigochim/backend:${IMAGE_TAG:-local}
     build: .
     init: true
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: local
-      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-safewhale}
-      DB_USERNAME: ${POSTGRES_USER:-safewhale}
-      DB_PASSWORD: ${POSTGRES_PASSWORD:-safewhale}
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-dasigochim}
+      DB_USERNAME: ${POSTGRES_USER:-dasigochim}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-dasigochim}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5175}
@@ -33,7 +33,7 @@ services:
       postgres:
         condition: service_healthy
     volumes:
-      - safewhale-uploads:/app/uploads
+      - dasigochim-uploads:/app/uploads
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -44,9 +44,9 @@ services:
     image: pgvector/pgvector:pg16
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-safewhale}
-      POSTGRES_USER: ${POSTGRES_USER:-safewhale}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-safewhale}
+      POSTGRES_DB: ${POSTGRES_DB:-dasigochim}
+      POSTGRES_USER: ${POSTGRES_USER:-dasigochim}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dasigochim}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     healthcheck:
@@ -55,8 +55,8 @@ services:
       timeout: 3s
       retries: 10
     volumes:
-      - safewhale-postgres:/var/lib/postgresql/data
+      - dasigochim-postgres:/var/lib/postgresql/data
 
 volumes:
-  safewhale-postgres:
-  safewhale-uploads:
+  dasigochim-postgres:
+  dasigochim-uploads:

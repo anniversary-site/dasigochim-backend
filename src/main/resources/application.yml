@@ -1,12 +1,12 @@
 spring:
   application:
-    name: safewhale-backend
+    name: dasigochim-backend
   profiles:
     default: local
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/safewhale}
-    username: ${DB_USERNAME:safewhale}
-    password: ${DB_PASSWORD:safewhale}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/dasigochim}
+    username: ${DB_USERNAME:dasigochim}
+    password: ${DB_PASSWORD:dasigochim}
   jpa:
     hibernate:
       ddl-auto: validate

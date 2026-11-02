@@ -14,4 +14,4 @@ app:
 
 logging:
   level:
-    com.safewhale: DEBUG
+    com.dasigochim: DEBUG
