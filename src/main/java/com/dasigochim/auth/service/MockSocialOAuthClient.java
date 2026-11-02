@@ -11,6 +11,6 @@ public class MockSocialOAuthClient implements SocialOAuthClient {
     @Override
     public SocialProfile getGoogleProfile(String idToken) {
         String stableId = UUID.nameUUIDFromBytes(idToken.getBytes(StandardCharsets.UTF_8)).toString();
-        return new SocialProfile("GOOGLE", "mock-" + stableId, "안전고래 사용자");
+        return new SocialProfile("GOOGLE", "mock-" + stableId, "다시고침 사용자");
     }
 }

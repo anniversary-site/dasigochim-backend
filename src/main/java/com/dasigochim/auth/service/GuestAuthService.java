@@ -2,6 +2,7 @@ package com.dasigochim.auth.service;
 
 import com.dasigochim.admin.domain.Admin;
 import com.dasigochim.admin.repository.AdminRepository;
+import com.dasigochim.building.repository.BuildingUnitRepository;
 import com.dasigochim.common.exception.BusinessException;
 import com.dasigochim.common.exception.ErrorCode;
 import com.dasigochim.common.security.JwtTokenProvider;
@@ -32,6 +33,7 @@ public class GuestAuthService {
     static final String ADMIN_PROVIDER_ID = "judge-admin";
 
     private final UserRepository userRepository;
+    private final BuildingUnitRepository unitRepository;
     private final AdminRepository adminRepository;
     private final DepartmentRepository departmentRepository;
     private final JwtTokenProvider tokenProvider;
@@ -58,12 +60,17 @@ public class GuestAuthService {
     }
 
     private User guestStudent() {
-        return userRepository.findByProviderAndProviderId(PROVIDER, STUDENT_PROVIDER_ID).orElseGet(() -> {
-            User user = new User(PROVIDER, STUDENT_PROVIDER_ID, "심사위원");
-            // 신고 진입 가드(프로필 필수)를 통과하도록 체험용 프로필을 채워 둔다.
-            user.updateProfile("심사위원", "체험 계정", "00000000", "010-0000-0000");
-            return userRepository.save(user);
+        User user = userRepository.findByProviderAndProviderId(PROVIDER, STUDENT_PROVIDER_ID).orElseGet(() -> {
+            User created = new User(PROVIDER, STUDENT_PROVIDER_ID, "심사위원");
+            created.updateProfile("심사위원", null, null, "010-0000-0000");
+            return userRepository.save(created);
         });
+        // 신고 진입 가드(프로필 필수)를 통과하도록 체험용 거주 세대를 채워 둔다.
+        if (user.getBuilding() == null) {
+            unitRepository.findFirstByOrderByIdAsc()
+                    .ifPresent(unit -> user.updateResidence(unit.getBuilding(), unit.getDong(), unit.getHo()));
+        }
+        return user;
     }
 
     private Admin guestAdmin() {

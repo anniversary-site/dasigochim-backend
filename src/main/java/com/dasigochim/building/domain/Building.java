@@ -23,6 +23,10 @@ public class Building extends BaseTimeEntity {
     @Column(precision = 10, scale = 7)
     private BigDecimal lng;
     private String address;
+    @Column(length = 30)
+    private String sido;
+    @Column(length = 30)
+    private String sigungu;
 
     public Building(String name, String code, BigDecimal lat, BigDecimal lng, String address) {
         this.name = name;
@@ -30,5 +34,11 @@ public class Building extends BaseTimeEntity {
         this.lat = lat;
         this.lng = lng;
         this.address = address;
+    }
+
+    public Building(String name, String code, String address, String sido, String sigungu) {
+        this(name, code, (BigDecimal) null, (BigDecimal) null, address);
+        this.sido = sido;
+        this.sigungu = sigungu;
     }
 }

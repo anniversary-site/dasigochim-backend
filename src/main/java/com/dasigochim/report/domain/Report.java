@@ -58,6 +58,29 @@ public class Report extends BaseTimeEntity {
     private BigDecimal lat;
     @Column(precision = 10, scale = 7)
     private BigDecimal lng;
+    @Enumerated(EnumType.STRING) @Column(name = "space_type", length = 10)
+    private SpaceType spaceType;
+    @Column(name = "space_code", length = 30)
+    private String spaceCode;
+    @Column(name = "space_name", length = 60)
+    private String spaceName;
+    @Column(length = 10)
+    private String dong;
+    @Column(name = "unit_type", length = 10)
+    private String unitType;
+    /** 위치를 찍은 3D 장면 id (예: unit_42-type, neighborhood_2F). 프론트의 /scenes/{id}_3d.html 과 짝이다. */
+    @Column(name = "scene_id", length = 40)
+    private String sceneId;
+    /** 3D 장면 좌표계(미터)에서의 핀 위치. */
+    @Column(name = "pin_x")
+    private Double pinX;
+    @Column(name = "pin_y")
+    private Double pinY;
+    @Column(name = "pin_z")
+    private Double pinZ;
+    /** 핀에서 가장 가까운 공간 이름 (예: 욕실, 피트니스). */
+    @Column(name = "pin_label", length = 60)
+    private String pinLabel;
     @Column(name = "detected_hazards", columnDefinition = "TEXT")
     private String detectedHazards;
     @Column(name = "report_file_url", length = 500)
@@ -86,6 +109,20 @@ public class Report extends BaseTimeEntity {
         this.room = room;
         this.lat = lat;
         this.lng = lng;
+    }
+
+    public void updateSpace(SpaceType spaceType, String spaceCode, String spaceName, String dong, String unitType,
+                            String sceneId, Double pinX, Double pinY, Double pinZ, String pinLabel) {
+        this.spaceType = spaceType;
+        this.spaceCode = spaceCode;
+        this.spaceName = spaceName;
+        this.dong = dong;
+        this.unitType = unitType;
+        this.sceneId = sceneId;
+        this.pinX = pinX;
+        this.pinY = pinY;
+        this.pinZ = pinZ;
+        this.pinLabel = pinLabel;
     }
 
     public void applyAiAnalysis(String summary, String description, RiskLevel riskLevel,

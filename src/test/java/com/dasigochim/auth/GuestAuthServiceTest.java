@@ -10,6 +10,10 @@ import com.dasigochim.common.security.PrincipalType;
 import com.dasigochim.department.domain.Department;
 import com.dasigochim.department.repository.DepartmentRepository;
 import com.dasigochim.user.repository.UserRepository;
+import com.dasigochim.building.domain.Building;
+import com.dasigochim.building.domain.BuildingUnit;
+import com.dasigochim.building.repository.BuildingRepository;
+import com.dasigochim.building.repository.BuildingUnitRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -24,10 +28,14 @@ class GuestAuthServiceTest {
     @Autowired UserRepository userRepository;
     @Autowired AdminRepository adminRepository;
     @Autowired DepartmentRepository departmentRepository;
+    @Autowired BuildingRepository buildingRepository;
+    @Autowired BuildingUnitRepository unitRepository;
 
     @Test
     void issuesStudentAndAdminTokensWithValidCodeAndReusesAccounts() {
         departmentRepository.save(new Department("게스트 테스트 부서", "GUEST_TEST"));
+        Building building = buildingRepository.save(new Building("테스트 청년주택", "TEST_HOUSING", "서울", "서울특별시", "마포구"));
+        unitRepository.save(new BuildingUnit(building, null, "301", "3", "18A", "unit_18A-type"));
 
         var student = guestAuthService.login(PrincipalType.USER, "test-guest-code");
         var admin = guestAuthService.login(PrincipalType.ADMIN, "test-guest-code");

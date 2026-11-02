@@ -4,6 +4,7 @@ import com.dasigochim.activitylog.domain.*;
 import com.dasigochim.activitylog.repository.ReportActivityLogRepository;
 import com.dasigochim.building.domain.Building;
 import com.dasigochim.building.repository.BuildingRepository;
+import com.dasigochim.building.service.BuildingService;
 import com.dasigochim.common.exception.BusinessException;
 import com.dasigochim.common.exception.ErrorCode;
 import com.dasigochim.file.hwp.HwpReportGenerator;
@@ -31,6 +32,7 @@ public class ReportService {
     private final ReportRepository reportRepository;
     private final UserRepository userRepository;
     private final BuildingRepository buildingRepository;
+    private final BuildingService buildingService;
     private final ReportActivityLogRepository activityRepository;
     private final NotificationRepository notificationRepository;
     private final HighRiskNotificationService highRiskNotificationService;
@@ -44,13 +46,41 @@ public class ReportService {
         return viewService.toResponse(reportRepository.save(Report.draft(user)), false, false);
     }
 
+    /**
+     * 신고 위치를 저장한다. 세대 내부는 동·호수로 세대 표를 찾아 타입과 3D 장면을 서버가 정하고,
+     * 공용공간은 공간 코드로 장면을 정한다. 핀 좌표는 그 장면 좌표계 그대로 받는다.
+     */
     @Transactional
     public ReportResponse updateLocation(Long id, Long userId, LocationRequest request) {
         Report report = getOwnedDraft(id, userId);
         Building building = request.buildingId() == null ? null : buildingRepository.findById(request.buildingId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.BUILDING_NOT_FOUND));
-        report.updateLocation(building, request.locationDescription(), request.indoor(), request.floor(), request.room(),
-                request.lat(), request.lng());
+        String floor = request.floor();
+        String room = request.room();
+        String spaceName = request.spaceName();
+        String unitType = null;
+        String sceneId = request.sceneId();
+        String dong = request.dong();
+        if (building != null && request.spaceType() == SpaceType.UNIT) {
+            var unit = buildingService.findUnit(building.getId(), request.dong(), request.room());
+            floor = unit.getFloor();
+            room = unit.getHo();
+            dong = unit.getDong();
+            unitType = unit.getUnitType();
+            sceneId = unit.getSceneId();
+            if (spaceName == null || spaceName.isBlank()) spaceName = "세대 내부";
+        } else if (building != null && request.spaceType() == SpaceType.COMMON && request.spaceCode() != null) {
+            var space = buildingService.findSpace(building.getId(), request.spaceCode());
+            sceneId = space.getSceneId();
+            spaceName = space.getName();
+            if (!space.isRequiresFloor()) floor = space.getFloorLabel();
+            room = null;
+            dong = null;
+        }
+        report.updateLocation(building, request.locationDescription(), request.indoor() == null ? Boolean.TRUE : request.indoor(),
+                floor, room, request.lat(), request.lng());
+        report.updateSpace(request.spaceType(), request.spaceCode(), spaceName, dong, unitType, sceneId,
+                request.pinX(), request.pinY(), request.pinZ(), request.pinLabel());
         return viewService.toResponse(report, false, false);
     }
 
@@ -81,7 +111,7 @@ public class ReportService {
     @Transactional
     public ReportResponse submit(Long id, Long userId) {
         Report report = getOwnedDraft(id, userId);
-        String trackingId = "SW-" + Instant.now().atZone(ZoneOffset.UTC).getYear() + "-" + String.format("%06d", report.getId());
+        String trackingId = "DG-" + Instant.now().atZone(ZoneOffset.UTC).getYear() + "-" + String.format("%06d", report.getId());
         report.submit(trackingId);
         activityRepository.save(ReportActivityLog.status(report, ReportStatus.RECEIVING, ReportStatus.RECEIVED,
                 ActorType.USER, userId, null, ActivityType.STATUS_CHANGE));
@@ -99,28 +129,42 @@ public class ReportService {
         reportRepository.delete(report);
     }
 
+    /**
+     * 신고 상세. 본인 신고는 전부 보여주고, 같은 단지 입주민에게는 세대 내부 위치를 가려 보여준다.
+     * 그 밖의 사람에게는 보여주지 않는다.
+     */
     @Transactional(readOnly = true)
-    public ReportResponse findByTrackingId(String trackingId) {
+    public ReportResponse findByTrackingId(String trackingId, Long viewerId) {
         Report report = reportRepository.findByTrackingId(trackingId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.REPORT_NOT_FOUND));
-        return viewService.toResponse(report, true, false);
+        if (viewerId != null && report.getReporter().getId().equals(viewerId)) {
+            return viewService.toResponse(report, true, false);
+        }
+        User viewer = viewerId == null ? null : userRepository.findById(viewerId).orElse(null);
+        if (viewer == null || viewer.getBuilding() == null || report.getBuilding() == null
+                || !viewer.getBuilding().getId().equals(report.getBuilding().getId())) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED, "같은 청년주택 입주민의 신고만 볼 수 있습니다.");
+        }
+        return viewService.toPublicResponse(report, true);
     }
 
+    /**
+     * 메인 화면 목록. mine = 내 신고, others = 같은 단지의 다른 입주민 신고(세대 내부 위치는 가림).
+     * 거주 단지를 아직 정하지 않은 사용자의 others 는 빈 목록이다.
+     */
     @Transactional(readOnly = true)
-    public List<ReportResponse> map(String filter, Long userId, String bbox) {
-        List<Report> reports = "mine".equalsIgnoreCase(filter)
-                ? reportRepository.findAllByReporterIdAndStatusNotOrderByCreatedAtDesc(requireUser(userId), ReportStatus.RECEIVING)
-                : reportRepository.findAllByStatusNotOrderBySubmittedAtDesc(ReportStatus.RECEIVING);
-        Bounds bounds = Bounds.parse(bbox);
-        return reports.stream().filter(report -> bounds == null || bounds.contains(report.getLat(), report.getLng()))
-                .map(report -> viewService.toResponse(report, false, false)).toList();
-    }
-
-    @Transactional(readOnly = true)
-    public List<ReportResponse> byBuilding(Long buildingId) {
-        if (!buildingRepository.existsById(buildingId)) throw new BusinessException(ErrorCode.BUILDING_NOT_FOUND);
-        return reportRepository.findAllByBuildingIdAndStatusNotOrderBySubmittedAtDesc(buildingId, ReportStatus.RECEIVING)
-                .stream().map(report -> viewService.toResponse(report, false, false)).toList();
+    public List<ReportResponse> feed(String filter, Long userId) {
+        User user = userRepository.findById(requireUser(userId))
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        if ("mine".equalsIgnoreCase(filter)) {
+            return reportRepository.findAllByReporterIdAndStatusNotOrderByCreatedAtDesc(user.getId(), ReportStatus.RECEIVING)
+                    .stream().map(report -> viewService.toResponse(report, false, false)).toList();
+        }
+        if (user.getBuilding() == null) return List.of();
+        return reportRepository.findAllByBuildingIdAndStatusNotOrderBySubmittedAtDesc(user.getBuilding().getId(), ReportStatus.RECEIVING)
+                .stream()
+                .filter(report -> !report.getReporter().getId().equals(user.getId()))
+                .map(report -> viewService.toPublicResponse(report, false)).toList();
     }
 
     public Report getOwnedDraft(Long id, Long userId) {
@@ -140,31 +184,14 @@ public class ReportService {
     }
 
     private Long requireUser(Long userId) {
-        if (userId == null) throw new BusinessException(ErrorCode.INVALID_TOKEN, "mine 필터는 로그인이 필요합니다.");
+        if (userId == null) throw new BusinessException(ErrorCode.INVALID_TOKEN, "로그인이 필요합니다.");
         return userId;
     }
 
+    /** room 은 호수다. spaceType 이 UNIT 이면 dong·room 으로 세대를 찾는다. */
     public record LocationRequest(Long buildingId, String locationDescription, Boolean indoor, String floor, String room,
-                                  BigDecimal lat, BigDecimal lng) {}
+                                  BigDecimal lat, BigDecimal lng, SpaceType spaceType, String spaceCode,
+                                  String spaceName, String dong, String sceneId, Double pinX, Double pinY, Double pinZ,
+                                  String pinLabel) {}
     public record UpdateRequest(String summary, String description, ReporterType reporterType, Long parentReportId) {}
-
-    private record Bounds(BigDecimal minLng, BigDecimal minLat, BigDecimal maxLng, BigDecimal maxLat) {
-        static Bounds parse(String value) {
-            if (value == null || value.isBlank()) return null;
-            try {
-                String[] values = value.split(",");
-                if (values.length != 4) throw new IllegalArgumentException();
-                return new Bounds(new BigDecimal(values[0]), new BigDecimal(values[1]),
-                        new BigDecimal(values[2]), new BigDecimal(values[3]));
-            } catch (RuntimeException exception) {
-                throw new BusinessException(ErrorCode.INVALID_REQUEST, "bbox는 minLng,minLat,maxLng,maxLat 형식이어야 합니다.");
-            }
-        }
-
-        boolean contains(BigDecimal lat, BigDecimal lng) {
-            if (lat == null || lng == null) return false;
-            return lng.compareTo(minLng) >= 0 && lng.compareTo(maxLng) <= 0
-                    && lat.compareTo(minLat) >= 0 && lat.compareTo(maxLat) <= 0;
-        }
-    }
 }

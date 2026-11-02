@@ -64,15 +64,20 @@ public class ReportController {
         return ApiResponse.ok();
     }
 
-    @GetMapping("/map")
-    ApiResponse<List<ReportResponse>> map(@RequestParam(defaultValue = "all") String filter,
-                                          @RequestParam(required = false) String bbox,
-                                          @AuthenticationPrincipal SecurityPrincipal principal) {
-        return ApiResponse.ok(reportService.map(filter, principal == null ? null : principal.id(), bbox));
+    /** 메인 화면 목록. filter = mine(내 신고) | others(같은 청년주택 다른 입주민 신고). */
+    @GetMapping("/feed")
+    ApiResponse<List<ReportResponse>> feed(@RequestParam(defaultValue = "mine") String filter,
+                                           @AuthenticationPrincipal SecurityPrincipal principal) {
+        return ApiResponse.ok(reportService.feed(filter, principal == null ? null : principal.id()));
     }
 
     @GetMapping("/{trackingId}")
-    ApiResponse<ReportResponse> detail(@PathVariable String trackingId) {
-        return ApiResponse.ok(reportService.findByTrackingId(trackingId));
+    ApiResponse<ReportResponse> detail(@PathVariable String trackingId,
+                                       @AuthenticationPrincipal SecurityPrincipal principal) {
+        return ApiResponse.ok(reportService.findByTrackingId(trackingId, userIdOf(principal)));
+    }
+
+    private static Long userIdOf(SecurityPrincipal principal) {
+        return principal == null || principal.type() != com.dasigochim.common.security.PrincipalType.USER ? null : principal.id();
     }
 }

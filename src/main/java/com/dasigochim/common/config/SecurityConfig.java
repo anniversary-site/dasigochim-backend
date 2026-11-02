@@ -60,7 +60,9 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/**", "/api/v1/admin/auth/login").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/buildings/**", "/api/v1/reports/map", "/api/v1/reports/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/buildings/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/reports/feed").hasRole("USER")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/reports/*").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/actuator/health", "/files/**").permitAll()
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         // 관리자 JWT의 id는 admins.id다. 사용자 전용 API에 통과시키면 users.id와 우연히

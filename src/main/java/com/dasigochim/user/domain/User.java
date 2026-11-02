@@ -1,5 +1,6 @@
 package com.dasigochim.user.domain;
 
+import com.dasigochim.building.domain.Building;
 import com.dasigochim.common.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -27,6 +28,13 @@ public class User extends BaseTimeEntity {
     private String phone;
     @Column(name = "push_token")
     private String pushToken;
+    /** 거주 중인 청년주택 단지. 같은 단지 입주민끼리만 신고가 보인다. */
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "building_id")
+    private Building building;
+    @Column(length = 10)
+    private String dong;
+    @Column(length = 10)
+    private String ho;
 
     public User(String provider, String providerId, String name) {
         this.provider = provider;
@@ -41,8 +49,14 @@ public class User extends BaseTimeEntity {
         this.phone = phone;
     }
 
+    public void updateResidence(Building building, String dong, String ho) {
+        this.building = building;
+        this.dong = dong;
+        this.ho = ho;
+    }
+
     public boolean isProfileCompleted() {
-        return !isBlank(name) && !isBlank(major) && !isBlank(studentNo) && !isBlank(phone);
+        return !isBlank(name) && !isBlank(phone) && building != null && !isBlank(ho);
     }
 
     private boolean isBlank(String value) {

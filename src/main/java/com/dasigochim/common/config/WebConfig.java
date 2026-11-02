@@ -11,7 +11,9 @@ public class WebConfig implements WebMvcConfigurer {
     private final String uploadLocation;
 
     public WebConfig(@Value("${app.file.upload-dir}") String uploadDirectory) {
-        this.uploadLocation = Path.of(uploadDirectory).toAbsolutePath().normalize().toUri().toString();
+        // 폴더가 아직 없으면 toUri() 가 끝에 '/' 를 붙이지 않아 안의 파일을 찾지 못한다.
+        String location = Path.of(uploadDirectory).toAbsolutePath().normalize().toUri().toString();
+        this.uploadLocation = location.endsWith("/") ? location : location + "/";
     }
 
     @Override

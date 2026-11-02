@@ -34,13 +34,8 @@ class AiReportFlowIntegrationTest {
         departmentRepository.save(new Department("시설팀", "FACILITY"));
         Long reportId = reportService.createDraft(user.getId()).id();
         reportService.updateLocation(reportId, user.getId(), new ReportService.LocationRequest(
-                null,
-                "로욜라 도서관 3관 입구 앞",
-                null,
-                null,
-                null,
-                new BigDecimal("37.5510000"),
-                new BigDecimal("126.9408000")));
+                null, "공용 복도 엘리베이터 앞", null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null));
 
         // 화면과 같은 순서로: 질문 하나 받고 답한 뒤 그 답변을 다음 질문 요청에 실어 보낸다.
         List<String> replies = List.of("우회해야 함", "며칠 됐어요", "아무 표시 없어요");
@@ -50,21 +45,21 @@ class AiReportFlowIntegrationTest {
             step = aiAnalysisService.createReportQuestion(
                     reportId, user.getId(), "바닥 타일이 깨져 있어요.", answers);
             answers.add(new AiAnalysisClient.Answer(step.question().id(), step.question().text(),
-                    replies.get(step.questionIndex() - 1)));
+                    replies.get(step.questionIndex() - 1), null));
         } while (!step.last());
 
         AiAnalysisClient.ReportDraft draft = aiAnalysisService.createReportDraft(
                 reportId,
                 user.getId(),
-                "로욜라 도서관 3관 입구 앞",
+                "공용 복도 엘리베이터 앞",
                 "바닥 타일이 깨져 있어요.",
                 answers);
 
         assertThat(answers).hasSize(3);
         assertThat(step.questionCount()).isEqualTo(3);
-        assertThat(draft.hazardContent()).contains("로욜라 도서관 3관 입구 앞").contains("안전표시가 없어");
+        assertThat(draft.hazardContent()).contains("공용 복도 엘리베이터 앞").contains("안전표시가 없어");
         assertThat(reportService.getOwnedDraft(reportId, user.getId()).getLocationDescription())
-                .isEqualTo("로욜라 도서관 3관 입구 앞");
+                .isEqualTo("공용 복도 엘리베이터 앞");
         assertThat(reportService.getOwnedDraft(reportId, user.getId()).getRiskLevel()).isEqualTo(RiskLevel.MEDIUM);
         assertThat(reportService.getOwnedDraft(reportId, user.getId()).getDepartment().getCode()).isEqualTo("FACILITY");
     }

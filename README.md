@@ -1,6 +1,6 @@
 # Dasigochim Backend
 
-안전고래 캠퍼스 안전 신고 서비스의 Spring Boot API 서버입니다.
+다시고침 청년주택 3D 공간 민원 서비스의 Spring Boot API 서버입니다.
 
 ## Docker로 전체 실행
 

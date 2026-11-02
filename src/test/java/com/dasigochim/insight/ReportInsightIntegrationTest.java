@@ -76,7 +76,7 @@ class ReportInsightIntegrationTest {
         Long reportId = reportService.createDraft(user.getId()).id();
         aiAnalysisService.createReportDraft(reportId, user.getId(), "로욜라 도서관 3관 입구 앞",
                 "바닥 타일이 깨져 있어요.",
-                List.of(new AiAnalysisClient.Answer("traffic_impact", "통행 영향", "우회해야 함")));
+                List.of(new AiAnalysisClient.Answer("traffic_impact", "통행 영향", "우회해야 함", null)));
         reportService.submit(reportId, user.getId());
         return reportId;
     }

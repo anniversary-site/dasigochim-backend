@@ -1,5 +1,6 @@
 package com.dasigochim.user.service;
 
+import com.dasigochim.building.service.BuildingService;
 import com.dasigochim.common.exception.BusinessException;
 import com.dasigochim.common.exception.ErrorCode;
 import com.dasigochim.notification.repository.NotificationRepository;
@@ -21,6 +22,7 @@ public class MeService {
     private final ReportRepository reportRepository;
     private final NotificationRepository notificationRepository;
     private final ReportViewService viewService;
+    private final BuildingService buildingService;
 
     @Transactional(readOnly = true)
     public ProfileResponse profile(Long userId) {
@@ -28,10 +30,14 @@ public class MeService {
         return ProfileResponse.from(user);
     }
 
+    /** 이름·연락처와 거주 단지·동·호수를 저장한다. 호수는 단지의 세대 표에 있어야 한다. */
     @Transactional
-    public ProfileResponse updateProfile(Long userId, String name, String major, String studentNo, String phone) {
+    public ProfileResponse updateProfile(Long userId, String name, String phone, Long buildingId, String dong, String ho) {
         var user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        user.updateProfile(name.trim(), major.trim(), studentNo.trim(), phone.trim());
+        var building = buildingService.getEntity(buildingId);
+        var unit = buildingService.findUnit(buildingId, dong, ho);
+        user.updateProfile(name.trim(), user.getMajor(), user.getStudentNo(), phone.trim());
+        user.updateResidence(building, unit.getDong(), unit.getHo());
         return ProfileResponse.from(user);
     }
 
@@ -55,13 +61,16 @@ public class MeService {
         notification.markRead();
     }
 
-    public record ProfileResponse(Long id, String name, String major, String studentNo, String phone,
+    public record ProfileResponse(Long id, String name, String phone, BuildingInfo building, String dong, String ho,
                                   boolean profileCompleted) {
         static ProfileResponse from(com.dasigochim.user.domain.User user) {
-            return new ProfileResponse(user.getId(), user.getName(), user.getMajor(), user.getStudentNo(),
-                    user.getPhone(), user.isProfileCompleted());
+            var building = user.getBuilding() == null ? null
+                    : new BuildingInfo(user.getBuilding().getId(), user.getBuilding().getName());
+            return new ProfileResponse(user.getId(), user.getName(), user.getPhone(), building, user.getDong(),
+                    user.getHo(), user.isProfileCompleted());
         }
     }
+    public record BuildingInfo(Long id, String name) {}
     public record NotificationResponse(Long id, String trackingId, String type, String title,
                                        String message, boolean read, Instant createdAt) {}
 }
