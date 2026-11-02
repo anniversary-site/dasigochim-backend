@@ -61,7 +61,13 @@ public class ReportService {
         String unitType = null;
         String sceneId = request.sceneId();
         String dong = request.dong();
-        if (building != null && request.spaceType() == SpaceType.UNIT) {
+        if (building != null && request.spaceType() == SpaceType.UNIT && !buildingService.hasUnits(building.getId())) {
+            // 3D 평면이 없는 단지는 세대 표도 없다. 사용자가 적은 동·호수를 그대로 둔다.
+            room = BuildingService.normalize(request.room());
+            dong = BuildingService.normalize(request.dong());
+            sceneId = null;
+            if (spaceName == null || spaceName.isBlank()) spaceName = "세대 내부";
+        } else if (building != null && request.spaceType() == SpaceType.UNIT) {
             var unit = buildingService.findUnit(building.getId(), request.dong(), request.room());
             floor = unit.getFloor();
             room = unit.getHo();

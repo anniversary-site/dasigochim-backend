@@ -35,9 +35,16 @@ public class MeService {
     public ProfileResponse updateProfile(Long userId, String name, String phone, Long buildingId, String dong, String ho) {
         var user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         var building = buildingService.getEntity(buildingId);
-        var unit = buildingService.findUnit(buildingId, dong, ho);
         user.updateProfile(name.trim(), user.getMajor(), user.getStudentNo(), phone.trim());
-        user.updateResidence(building, unit.getDong(), unit.getHo());
+        if (buildingService.hasUnits(buildingId)) {
+            var unit = buildingService.findUnit(buildingId, dong, ho);
+            user.updateResidence(building, unit.getDong(), unit.getHo());
+        } else {
+            // 세대 표가 없는 단지는 적은 그대로 받는다.
+            String normalizedHo = BuildingService.normalize(ho);
+            if (normalizedHo == null) throw new BusinessException(ErrorCode.INVALID_REQUEST, "호수를 입력해 주세요.");
+            user.updateResidence(building, BuildingService.normalize(dong), normalizedHo);
+        }
         return ProfileResponse.from(user);
     }
 

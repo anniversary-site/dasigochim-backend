@@ -6,13 +6,13 @@ import com.dasigochim.building.domain.BuildingUnit;
 import com.dasigochim.building.repository.BuildingRepository;
 import com.dasigochim.building.repository.BuildingSpaceRepository;
 import com.dasigochim.building.repository.BuildingUnitRepository;
+import com.dasigochim.building.repository.RegionRepository;
 import com.dasigochim.common.exception.BusinessException;
 import com.dasigochim.common.exception.ErrorCode;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.TreeSet;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,32 +24,34 @@ public class BuildingService {
     private final BuildingRepository repository;
     private final BuildingUnitRepository unitRepository;
     private final BuildingSpaceRepository spaceRepository;
+    private final RegionRepository regionRepository;
 
     public List<BuildingResponse> findAll(String query, String sido, String sigungu) {
         List<Building> buildings = query == null || query.isBlank()
                 ? repository.findAllByOrderByName() : repository.findByNameContainingIgnoreCaseOrderByName(query);
+        var withUnits = unitRepository.findBuildingIdsWithUnits();
         return buildings.stream()
                 .filter(building -> isBlank(sido) || sido.equals(building.getSido()))
                 .filter(building -> isBlank(sigungu) || sigungu.equals(building.getSigungu()))
-                .map(BuildingResponse::from).toList();
+                .map(building -> BuildingResponse.from(building, withUnits.contains(building.getId()))).toList();
     }
 
-    /** 청년주택이 있는 시·도와 그 아래 시·군·구 목록. */
+    /** 전국 시·도와 그 아래 시·군·구 목록. 청년주택이 없는 지역도 들어 있다. */
     public List<RegionResponse> regions() {
-        Map<String, TreeSet<String>> regions = new LinkedHashMap<>();
-        repository.findAllByOrderByName().stream()
-                .filter(building -> !isBlank(building.getSido()))
-                .sorted(java.util.Comparator.comparing(Building::getSido))
-                .forEach(building -> {
-                    var sigungus = regions.computeIfAbsent(building.getSido(), key -> new TreeSet<>());
-                    if (!isBlank(building.getSigungu())) sigungus.add(building.getSigungu());
-                });
+        Map<String, List<String>> regions = new LinkedHashMap<>();
+        regionRepository.findAllByOrderBySortOrder()
+                .forEach(region -> regions.computeIfAbsent(region.getSido(), key -> new java.util.ArrayList<>()).add(region.getSigungu()));
         return regions.entrySet().stream()
                 .map(entry -> new RegionResponse(entry.getKey(), List.copyOf(entry.getValue()))).toList();
     }
 
     public BuildingResponse findOne(Long id) {
-        return BuildingResponse.from(getEntity(id));
+        return BuildingResponse.from(getEntity(id), hasUnits(id));
+    }
+
+    /** 세대 표가 있는 단지만 동·호수로 세대 타입과 3D 평면을 찾을 수 있다. */
+    public boolean hasUnits(Long buildingId) {
+        return unitRepository.existsByBuildingId(buildingId);
     }
 
     public List<SpaceResponse> spaces(Long buildingId) {
@@ -84,7 +86,7 @@ public class BuildingService {
     }
 
     /** "1203호", " 1203 " 처럼 들어와도 숫자·영문만 남긴다. */
-    private static String normalize(String value) {
+    public static String normalize(String value) {
         if (value == null) return null;
         String cleaned = value.replaceAll("[동호\\s]", "").trim();
         return cleaned.isEmpty() ? null : cleaned;
@@ -94,11 +96,14 @@ public class BuildingService {
         return value == null || value.isBlank();
     }
 
+    /** has3d = 세대 표와 3D 평면이 있어 3D 로 위치를 찍을 수 있는 단지 */
     public record BuildingResponse(Long id, String name, String code, java.math.BigDecimal lat,
-                                   java.math.BigDecimal lng, String address, String sido, String sigungu) {
-        static BuildingResponse from(Building building) {
+                                   java.math.BigDecimal lng, String address, String sido, String sigungu,
+                                   String supplyStatus, boolean has3d) {
+        static BuildingResponse from(Building building, boolean has3d) {
             return new BuildingResponse(building.getId(), building.getName(), building.getCode(),
-                    building.getLat(), building.getLng(), building.getAddress(), building.getSido(), building.getSigungu());
+                    building.getLat(), building.getLng(), building.getAddress(), building.getSido(), building.getSigungu(),
+                    building.getSupplyStatus(), has3d);
         }
     }
 

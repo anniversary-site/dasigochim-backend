@@ -9,6 +9,10 @@ import com.dasigochim.building.domain.BuildingUnit;
 import com.dasigochim.building.repository.BuildingRepository;
 import com.dasigochim.building.repository.BuildingSpaceRepository;
 import com.dasigochim.building.repository.BuildingUnitRepository;
+import com.dasigochim.building.repository.RegionRepository;
+import com.dasigochim.building.domain.Region;
+import com.dasigochim.building.service.BuildingService;
+import com.dasigochim.user.service.MeService;
 import com.dasigochim.common.exception.BusinessException;
 import com.dasigochim.report.domain.SpaceType;
 import com.dasigochim.report.dto.ReportResponse;
@@ -31,6 +35,9 @@ class ReportSpaceIntegrationTest {
     @Autowired BuildingUnitRepository unitRepository;
     @Autowired BuildingSpaceRepository spaceRepository;
     @Autowired ReportService reportService;
+    @Autowired BuildingService buildingService;
+    @Autowired RegionRepository regionRepository;
+    @Autowired MeService meService;
 
     Building housing;
     User reporter;
@@ -100,6 +107,35 @@ class ReportSpaceIntegrationTest {
                 housing.getId(), "없는 호수", null, null, "9999", null, null,
                 SpaceType.UNIT, null, null, null, null, null, null, null, null)))
                 .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void housingWithout3dKeepsTypedUnitAndAcceptsProfile() {
+        Building plain = buildingRepository.save(new Building("3D 없는 청년주택", "PLAIN_HOUSING", "서울", "서울특별시", "용산구"));
+        assertThat(buildingService.hasUnits(plain.getId())).isFalse();
+
+        var profile = meService.updateProfile(reporter.getId(), "입주민", "010-1234-5678", plain.getId(), "", "502호");
+        assertThat(profile.ho()).isEqualTo("502");
+        assertThat(profile.profileCompleted()).isTrue();
+
+        String trackingId = submit(new ReportService.LocationRequest(
+                plain.getId(), "3D 없는 청년주택 502호 · 욕실 천장", null, null, "502호", null, null,
+                SpaceType.UNIT, null, null, null, null, null, null, null, null));
+        ReportResponse own = reportService.findByTrackingId(trackingId, reporter.getId());
+        assertThat(own.room()).isEqualTo("502");
+        assertThat(own.space().sceneId()).isNull();
+        assertThat(own.space().pin()).isNull();
+    }
+
+    @Test
+    void regionsListEveryRegionEvenWithoutHousing() {
+        regionRepository.save(new Region("서울특별시", "종로구", 0));
+        regionRepository.save(new Region("서울특별시", "마포구", 1));
+        regionRepository.save(new Region("제주특별자치도", "제주시", 1600));
+        assertThat(buildingService.regions())
+                .extracting(BuildingService.RegionResponse::sido)
+                .containsExactly("서울특별시", "제주특별자치도");
+        assertThat(buildingService.regions().get(0).sigungus()).containsExactly("종로구", "마포구");
     }
 
     private String submit(ReportService.LocationRequest location) {

@@ -27,6 +27,9 @@ public class Building extends BaseTimeEntity {
     private String sido;
     @Column(length = 30)
     private String sigungu;
+    /** 공급 단계 (입주 / 준공 / 착공신고 / 인가완료) */
+    @Column(name = "supply_status", length = 20)
+    private String supplyStatus;
 
     public Building(String name, String code, BigDecimal lat, BigDecimal lng, String address) {
         this.name = name;
