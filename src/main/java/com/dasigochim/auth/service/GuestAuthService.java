@@ -55,7 +55,7 @@ public class GuestAuthService {
     private void verify(String code) {
         if (accessCode == null || accessCode.isBlank() || code == null
                 || !MessageDigest.isEqual(accessCode.getBytes(StandardCharsets.UTF_8), code.getBytes(StandardCharsets.UTF_8))) {
-            throw new BusinessException(ErrorCode.ACCESS_DENIED, "심사위원 접근 코드가 올바르지 않습니다.");
+            throw new BusinessException(ErrorCode.ACCESS_DENIED, "테스트 로그인 접근 코드가 올바르지 않습니다.");
         }
     }
 
