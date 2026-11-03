@@ -3,6 +3,7 @@ package com.dasigochim.report;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.dasigochim.admin_report.service.AdminSpaceMapService;
 import com.dasigochim.building.domain.Building;
 import com.dasigochim.building.domain.BuildingSpace;
 import com.dasigochim.building.domain.BuildingUnit;
@@ -38,6 +39,7 @@ class ReportSpaceIntegrationTest {
     @Autowired BuildingService buildingService;
     @Autowired RegionRepository regionRepository;
     @Autowired MeService meService;
+    @Autowired AdminSpaceMapService spaceMapService;
 
     Building housing;
     User reporter;
@@ -136,6 +138,27 @@ class ReportSpaceIntegrationTest {
                 .extracting(BuildingService.RegionResponse::sido)
                 .containsExactly("서울특별시", "제주특별자치도");
         assertThat(buildingService.regions().get(0).sigungus()).containsExactly("종로구", "마포구");
+    }
+
+    @Test
+    void adminSpaceMapListsScenesAndPinnedReports() {
+        submit(new ReportService.LocationRequest(
+                housing.getId(), "1203호 욕실", null, null, "1203", null, null,
+                SpaceType.UNIT, null, null, null, null, 1.0, 0.0, 1.0, "욕실"));
+        submit(new ReportService.LocationRequest(
+                housing.getId(), "피트니스", null, null, null, null, null,
+                SpaceType.COMMON, "FITNESS", null, null, null, 2.0, 0.0, 2.0, "피트니스"));
+
+        var map = spaceMapService.spaceMap(housing.getId());
+        assertThat(map.building().has3d()).isTrue();
+        assertThat(map.scenes()).extracting(AdminSpaceMapService.SceneInfo::sceneId)
+                .containsExactly("neighborhood_2F", "unit_42-type");
+        assertThat(map.scenes()).extracting(AdminSpaceMapService.SceneInfo::name)
+                .containsExactly("피트니스", "세대 42 TYPE");
+        assertThat(map.reports()).hasSize(2)
+                .allSatisfy(report -> assertThat(report.space().pin()).isNotNull());
+        // 관리자는 세대 내부 신고의 호수도 본다.
+        assertThat(map.reports()).anySatisfy(report -> assertThat(report.room()).isEqualTo("1203"));
     }
 
     private String submit(ReportService.LocationRequest location) {

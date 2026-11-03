@@ -1,6 +1,7 @@
 package com.dasigochim.admin_report.controller;
 
 import com.dasigochim.admin_report.service.AdminReportService;
+import com.dasigochim.admin_report.service.AdminSpaceMapService;
 import com.dasigochim.common.response.ApiResponse;
 import com.dasigochim.common.response.PageResponse;
 import com.dasigochim.common.security.SecurityPrincipal;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 public class AdminReportController {
     private final AdminReportService service;
     private final ReportInsightService insightService;
+    private final AdminSpaceMapService spaceMapService;
 
     @GetMapping("/stats/summary")
     ApiResponse<AdminReportService.StatsResponse> stats() { return ApiResponse.ok(service.stats()); }
@@ -35,6 +37,12 @@ public class AdminReportController {
     @GetMapping("/departments")
     ApiResponse<List<AdminReportService.DepartmentPendingResponse>> departments() {
         return ApiResponse.ok(service.departments());
+    }
+
+    /** 3D 지도: 단지의 3D 장면 목록과 접수된 신고 전부(핀 좌표 포함). */
+    @GetMapping("/buildings/{id}/space-map")
+    ApiResponse<AdminSpaceMapService.SpaceMapResponse> spaceMap(@PathVariable Long id) {
+        return ApiResponse.ok(spaceMapService.spaceMap(id));
     }
 
     @GetMapping("/reports")
