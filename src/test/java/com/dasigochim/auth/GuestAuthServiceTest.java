@@ -44,7 +44,12 @@ class GuestAuthServiceTest {
         assertThat(student.principalType()).isEqualTo(PrincipalType.USER);
         assertThat(admin.principalType()).isEqualTo(PrincipalType.ADMIN);
         assertThat(userRepository.findByProviderAndProviderId("GUEST", "judge-student")).get()
-                .satisfies(user -> assertThat(user.isProfileCompleted()).isTrue());
+                .satisfies(user -> {
+                    assertThat(user.isProfileCompleted()).isTrue();
+                    assertThat(user.getName()).isEqualTo("김가명");
+                });
+        assertThat(adminRepository.findAll()).singleElement()
+                .satisfies(found -> assertThat(found.getName()).isEqualTo("테스트 관리자"));
         assertThat(adminRepository.count()).isEqualTo(1);
     }
 

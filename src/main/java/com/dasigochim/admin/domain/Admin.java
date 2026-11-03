@@ -35,6 +35,10 @@ public class Admin extends BaseTimeEntity {
         this.department = department;
     }
 
+    public void rename(String name) {
+        this.name = name;
+    }
+
     public void linkUser(User user) {
         this.user = user;
     }

@@ -31,6 +31,11 @@ public class GuestAuthService {
     static final String PROVIDER = "GUEST";
     static final String STUDENT_PROVIDER_ID = "judge-student";
     static final String ADMIN_PROVIDER_ID = "judge-admin";
+    static final String RESIDENT_NAME = "김가명";
+    static final String ADMIN_NAME = "테스트 관리자";
+    /** 예전 기본 이름. 이 이름 그대로인 계정만 새 이름으로 바꾼다 (프로필에서 바꾼 이름은 둔다). */
+    private static final String OLD_RESIDENT_NAME = "심사위원";
+    private static final String OLD_ADMIN_NAME = "심사위원 관리자";
 
     private final UserRepository userRepository;
     private final BuildingUnitRepository unitRepository;
@@ -61,10 +66,13 @@ public class GuestAuthService {
 
     private User guestStudent() {
         User user = userRepository.findByProviderAndProviderId(PROVIDER, STUDENT_PROVIDER_ID).orElseGet(() -> {
-            User created = new User(PROVIDER, STUDENT_PROVIDER_ID, "심사위원");
-            created.updateProfile("심사위원", null, null, "010-0000-0000");
+            User created = new User(PROVIDER, STUDENT_PROVIDER_ID, RESIDENT_NAME);
+            created.updateProfile(RESIDENT_NAME, null, null, "010-0000-0000");
             return userRepository.save(created);
         });
+        if (OLD_RESIDENT_NAME.equals(user.getName())) {
+            user.updateProfile(RESIDENT_NAME, user.getMajor(), user.getStudentNo(), user.getPhone());
+        }
         // 신고 진입 가드(프로필 필수)를 통과하도록 체험용 거주 세대를 채워 둔다.
         if (user.getBuilding() == null) {
             unitRepository.findFirstByOrderByIdAsc()
@@ -75,13 +83,18 @@ public class GuestAuthService {
 
     private Admin guestAdmin() {
         User user = userRepository.findByProviderAndProviderId(PROVIDER, ADMIN_PROVIDER_ID)
-                .orElseGet(() -> userRepository.save(new User(PROVIDER, ADMIN_PROVIDER_ID, "심사위원 관리자")));
-        return adminRepository.findByUserId(user.getId()).orElseGet(() -> {
+                .orElseGet(() -> userRepository.save(new User(PROVIDER, ADMIN_PROVIDER_ID, ADMIN_NAME)));
+        if (OLD_ADMIN_NAME.equals(user.getName())) {
+            user.updateProfile(ADMIN_NAME, user.getMajor(), user.getStudentNo(), user.getPhone());
+        }
+        Admin found = adminRepository.findByUserId(user.getId()).orElseGet(() -> {
             var department = departmentRepository.findByCode(adminDepartmentCode)
                     .orElseThrow(() -> new BusinessException(ErrorCode.DEPARTMENT_NOT_FOUND));
-            Admin admin = new Admin(null, null, "심사위원 관리자", department);
+            Admin admin = new Admin(null, null, ADMIN_NAME, department);
             admin.linkUser(user);
             return adminRepository.save(admin);
         });
+        if (OLD_ADMIN_NAME.equals(found.getName())) found.rename(ADMIN_NAME);
+        return found;
     }
 }
