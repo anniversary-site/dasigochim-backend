@@ -1,6 +1,7 @@
 package com.dasigochim.notification.service;
 
 import com.dasigochim.admin.repository.AdminRepository;
+import com.dasigochim.admin.service.AdminAccessService;
 import com.dasigochim.notification.domain.Notification;
 import com.dasigochim.notification.domain.NotificationType;
 import com.dasigochim.notification.repository.NotificationRepository;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Service;
 public class HighRiskNotificationService {
     private final NotificationRepository notificationRepository;
     private final AdminRepository adminRepository;
+    private final AdminAccessService accessService;
 
     public void notifySubmittedHighRisk(Report report) {
         if (report.getRiskLevel() != RiskLevel.HIGH) return;
@@ -32,7 +34,9 @@ public class HighRiskNotificationService {
         List<Notification> notifications = new ArrayList<>();
         notifications.add(new Notification(report, report.getReporter(), NotificationType.HIGH_RISK,
                 userTitle, trackingId + " 신고가 고위험으로 분류되어 신속히 검토됩니다."));
-        adminRepository.findAll().forEach(admin -> notifications.add(new Notification(report, admin, NotificationType.HIGH_RISK,
+        // 담당 구역에 이 신고 단지가 들어가는 관리자에게만 알린다.
+        adminRepository.findAll().stream().filter(admin -> accessService.covers(admin, report.getBuilding()))
+                .forEach(admin -> notifications.add(new Notification(report, admin, NotificationType.HIGH_RISK,
                 "고위험 신고 알림", trackingId + " 고위험 신고가 접수되었습니다. 확인이 필요합니다.")));
         notificationRepository.saveAll(notifications);
     }

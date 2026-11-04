@@ -89,6 +89,9 @@ public class Report extends BaseTimeEntity {
     private Report parentReport;
     @Column(name = "submitted_at")
     private Instant submittedAt;
+    /** 처리완료된 시각. 대시보드 평균 처리 기간에 쓴다. */
+    @Column(name = "resolved_at")
+    private Instant resolvedAt;
 
     public static Report draft(User reporter) {
         Report report = new Report();
@@ -166,6 +169,7 @@ public class Report extends BaseTimeEntity {
                 || (status == ReportStatus.REVIEWING && next == ReportStatus.RESOLVED);
         if (!allowed) throw new BusinessException(ErrorCode.INVALID_STATUS_TRANSITION);
         this.status = next;
+        if (next == ReportStatus.RESOLVED) this.resolvedAt = Instant.now();
     }
 
     public void reassignDepartment(Department department) {

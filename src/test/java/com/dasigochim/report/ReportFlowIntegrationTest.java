@@ -43,8 +43,9 @@ class ReportFlowIntegrationTest {
         reportRepository.findById(reportId).orElseThrow().reassignDepartment(department);
 
         reportService.submit(reportId, user.getId());
-        adminReportService.changeStatus(reportId, 100L, ReportStatus.REVIEWING);
-        adminReportService.resolve(reportId, 100L, "현장 보수를 완료했습니다.");
+        Long adminId = adminRepository.save(new Admin("flow-admin", "hash", "흐름 관리자", department)).getId();
+        adminReportService.changeStatus(reportId, adminId, ReportStatus.REVIEWING);
+        adminReportService.resolve(reportId, adminId, "현장 보수를 완료했습니다.");
 
         assertThat(reportRepository.findById(reportId).orElseThrow().getStatus()).isEqualTo(ReportStatus.RESOLVED);
         assertThat(activityRepository.findAllByReportIdOrderByCreatedAt(reportId)).hasSize(3);

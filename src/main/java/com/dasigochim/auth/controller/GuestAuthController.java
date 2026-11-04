@@ -1,5 +1,6 @@
 package com.dasigochim.auth.controller;
 
+import com.dasigochim.admin.domain.AdminRole;
 import com.dasigochim.auth.service.GuestAuthService;
 import com.dasigochim.common.response.ApiResponse;
 import com.dasigochim.common.security.JwtTokenProvider;
@@ -21,8 +22,9 @@ public class GuestAuthController {
 
     @PostMapping("/auth/guest")
     ApiResponse<JwtTokenProvider.TokenPair> guest(@Valid @RequestBody GuestLoginRequest request) {
-        return ApiResponse.ok(guestAuthService.login(request.role(), request.code()));
+        return ApiResponse.ok(guestAuthService.login(request.role(), request.code(), request.adminRole()));
     }
 
-    record GuestLoginRequest(@NotNull PrincipalType role, @NotBlank String code) {}
+    /** adminRole 은 관리자일 때만 쓴다. 없으면 전체 관리자 */
+    record GuestLoginRequest(@NotNull PrincipalType role, @NotBlank String code, AdminRole adminRole) {}
 }

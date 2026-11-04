@@ -1,6 +1,10 @@
 package com.dasigochim.auth.service;
 
 import com.dasigochim.admin.domain.Admin;
+import com.dasigochim.admin.domain.AdminRole;
+import com.dasigochim.admin.domain.AdminScope;
+import com.dasigochim.admin.repository.AdminScopeRepository;
+import com.dasigochim.building.repository.BuildingRepository;
 import com.dasigochim.admin.repository.AdminRepository;
 import com.dasigochim.building.repository.BuildingUnitRepository;
 import com.dasigochim.common.exception.BusinessException;
@@ -33,6 +37,14 @@ public class GuestAuthService {
     static final String ADMIN_PROVIDER_ID = "judge-admin";
     static final String RESIDENT_NAME = "김가명";
     static final String ADMIN_NAME = "테스트 관리자";
+    /** 시연용 지역 담당자 · 단지 관리인 */
+    static final String REGION_ADMIN_PROVIDER_ID = "judge-admin-region";
+    static final String BUILDING_ADMIN_PROVIDER_ID = "judge-admin-building";
+    static final String REGION_ADMIN_NAME = "마포구 담당자";
+    static final String BUILDING_ADMIN_NAME = "공덕역 관리인";
+    static final String REGION_SIDO = "서울특별시";
+    static final String REGION_SIGUNGU = "마포구";
+    static final String BUILDING_CODE = "ESEO314";
     /** 예전 기본 이름. 이 이름 그대로인 계정만 새 이름으로 바꾼다 (프로필에서 바꾼 이름은 둔다). */
     private static final String OLD_RESIDENT_NAME = "심사위원";
     private static final String OLD_ADMIN_NAME = "심사위원 관리자";
@@ -40,6 +52,8 @@ public class GuestAuthService {
     private final UserRepository userRepository;
     private final BuildingUnitRepository unitRepository;
     private final AdminRepository adminRepository;
+    private final AdminScopeRepository scopeRepository;
+    private final BuildingRepository buildingRepository;
     private final DepartmentRepository departmentRepository;
     private final JwtTokenProvider tokenProvider;
 
@@ -50,9 +64,15 @@ public class GuestAuthService {
 
     @Transactional
     public JwtTokenProvider.TokenPair login(PrincipalType role, String code) {
+        return login(role, code, AdminRole.SUPER);
+    }
+
+    /** adminRole: 관리자로 들어갈 때 전체 관리자 / 지역 담당자(마포구) / 단지 관리인(공덕역 e·seo) 중 하나 */
+    @Transactional
+    public JwtTokenProvider.TokenPair login(PrincipalType role, String code, AdminRole adminRole) {
         verify(code);
         if (role == PrincipalType.ADMIN) {
-            return tokenProvider.issue(guestAdmin().getId(), PrincipalType.ADMIN);
+            return tokenProvider.issue(guestAdmin(adminRole == null ? AdminRole.SUPER : adminRole).getId(), PrincipalType.ADMIN);
         }
         return tokenProvider.issue(guestStudent().getId(), PrincipalType.USER);
     }
@@ -81,20 +101,41 @@ public class GuestAuthService {
         return user;
     }
 
-    private Admin guestAdmin() {
-        User user = userRepository.findByProviderAndProviderId(PROVIDER, ADMIN_PROVIDER_ID)
-                .orElseGet(() -> userRepository.save(new User(PROVIDER, ADMIN_PROVIDER_ID, ADMIN_NAME)));
+    private Admin guestAdmin(AdminRole adminRole) {
+        String providerId = switch (adminRole) {
+            case SUPER -> ADMIN_PROVIDER_ID;
+            case REGION -> REGION_ADMIN_PROVIDER_ID;
+            case BUILDING -> BUILDING_ADMIN_PROVIDER_ID;
+        };
+        String name = switch (adminRole) {
+            case SUPER -> ADMIN_NAME;
+            case REGION -> REGION_ADMIN_NAME;
+            case BUILDING -> BUILDING_ADMIN_NAME;
+        };
+        User user = userRepository.findByProviderAndProviderId(PROVIDER, providerId)
+                .orElseGet(() -> userRepository.save(new User(PROVIDER, providerId, name)));
         if (OLD_ADMIN_NAME.equals(user.getName())) {
-            user.updateProfile(ADMIN_NAME, user.getMajor(), user.getStudentNo(), user.getPhone());
+            user.updateProfile(name, user.getMajor(), user.getStudentNo(), user.getPhone());
         }
         Admin found = adminRepository.findByUserId(user.getId()).orElseGet(() -> {
             var department = departmentRepository.findByCode(adminDepartmentCode)
                     .orElseThrow(() -> new BusinessException(ErrorCode.DEPARTMENT_NOT_FOUND));
-            Admin admin = new Admin(null, null, ADMIN_NAME, department);
+            Admin admin = new Admin(null, null, name, department);
             admin.linkUser(user);
             return adminRepository.save(admin);
         });
-        if (OLD_ADMIN_NAME.equals(found.getName())) found.rename(ADMIN_NAME);
+        if (OLD_ADMIN_NAME.equals(found.getName())) found.rename(name);
+        found.changeRole(adminRole);
+        // 담당 구역은 로그인할 때마다 시연용 값으로 맞춘다.
+        scopeRepository.deleteAllByAdminId(found.getId());
+        scopeRepository.flush();
+        if (adminRole == AdminRole.REGION) {
+            scopeRepository.save(AdminScope.region(found, REGION_SIDO, REGION_SIGUNGU));
+        } else if (adminRole == AdminRole.BUILDING) {
+            buildingRepository.findByCode(BUILDING_CODE)
+                    .or(() -> unitRepository.findFirstByOrderByIdAsc().map(unit -> unit.getBuilding()))
+                    .ifPresent(building -> scopeRepository.save(AdminScope.building(found, building)));
+        }
         return found;
     }
 }

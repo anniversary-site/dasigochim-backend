@@ -27,6 +27,9 @@ public class Admin extends BaseTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "department_id", nullable = false)
     private Department department;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private AdminRole role = AdminRole.SUPER;
 
     public Admin(String loginId, String passwordHash, String name, Department department) {
         this.loginId = loginId;
@@ -37,6 +40,10 @@ public class Admin extends BaseTimeEntity {
 
     public void rename(String name) {
         this.name = name;
+    }
+
+    public void changeRole(AdminRole role) {
+        this.role = role;
     }
 
     public void linkUser(User user) {

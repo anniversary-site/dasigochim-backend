@@ -52,7 +52,7 @@ public class ReportViewService {
                 reporterName, building, locationDescription, report.getIndoor(),
                 mask ? null : report.getFloor(), mask ? null : report.getRoom(), report.getLat(), report.getLng(),
                 space, report.getDetectedHazards(), report.getReportFileUrl(), photos, timeline,
-                report.getSubmittedAt(), report.getCreatedAt());
+                report.getSubmittedAt(), report.getCreatedAt(), report.getResolvedAt());
     }
 
     private static String maskedLocation(Report report) {

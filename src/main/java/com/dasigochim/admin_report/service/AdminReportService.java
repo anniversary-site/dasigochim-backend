@@ -2,7 +2,7 @@ package com.dasigochim.admin_report.service;
 
 import com.dasigochim.activitylog.domain.*;
 import com.dasigochim.activitylog.repository.ReportActivityLogRepository;
-import com.dasigochim.admin.repository.AdminRepository;
+import com.dasigochim.admin.service.AdminAccessService;
 import com.dasigochim.common.exception.BusinessException;
 import com.dasigochim.common.exception.ErrorCode;
 import com.dasigochim.common.response.PageResponse;
@@ -34,7 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class AdminReportService {
     private final ReportRepository reportRepository;
-    private final AdminRepository adminRepository;
+    private final AdminAccessService accessService;
     private final DepartmentRepository departmentRepository;
     private final ReportActivityLogRepository activityRepository;
     private final NotificationRepository notificationRepository;
@@ -43,32 +43,59 @@ public class AdminReportService {
     private final ReportViewService viewService;
     private final HwpReportGenerator hwpReportGenerator;
 
+    /** 담당 범위 안 신고만 고르는 조건. SUPER 면 조건 없음, 맡은 단지가 없으면 아무것도 안 나온다. */
+    private Specification<Report> inScope(AdminAccessService.Access access) {
+        return (root, criteria, builder) -> {
+            if (access.all()) return builder.conjunction();
+            if (access.buildingIds().isEmpty()) return builder.disjunction();
+            return root.get("building").get("id").in(access.buildingIds());
+        };
+    }
+
+    private static Specification<Report> withStatus(ReportStatus status) {
+        return (root, criteria, builder) -> builder.equal(root.get("status"), status);
+    }
+
     @Transactional(readOnly = true)
-    public StatsResponse stats() {
+    public StatsResponse stats(Long adminId) {
+        var scope = inScope(accessService.access(adminId));
         Instant today = LocalDate.now(ZoneOffset.UTC).atStartOfDay().toInstant(ZoneOffset.UTC);
-        return new StatsResponse(reportRepository.countByStatus(ReportStatus.RECEIVED),
-                reportRepository.countByStatus(ReportStatus.REVIEWING),
-                reportRepository.countByStatus(ReportStatus.RESOLVED), reportRepository.countBySubmittedAtAfter(today));
+        Specification<Report> todayNew = (root, criteria, builder) -> builder.greaterThan(root.get("submittedAt"), today);
+        return new StatsResponse(reportRepository.count(scope.and(withStatus(ReportStatus.RECEIVED))),
+                reportRepository.count(scope.and(withStatus(ReportStatus.REVIEWING))),
+                reportRepository.count(scope.and(withStatus(ReportStatus.RESOLVED))),
+                reportRepository.count(scope.and(todayNew)));
     }
 
     @Transactional(readOnly = true)
     public AdminMeResponse me(Long adminId) {
-        var admin = adminRepository.findById(adminId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        return new AdminMeResponse(admin.getName());
+        var access = accessService.access(adminId);
+        var admin = access.admin();
+        var scopes = access.scopes().stream()
+                .map(scope -> new ScopeResponse(scope.getSido(), scope.getSigungu(),
+                        scope.getBuilding() == null ? null : scope.getBuilding().getId(),
+                        scope.getBuilding() == null ? null : scope.getBuilding().getName(),
+                        scope.getBuilding() == null ? null : scope.getBuilding().getSido(),
+                        scope.getBuilding() == null ? null : scope.getBuilding().getSigungu()))
+                .toList();
+        return new AdminMeResponse(admin.getName(), admin.getRole().name(), admin.getRole().label(),
+                access.scopeLabel(), admin.getDepartment().getName(), scopes);
     }
 
     @Transactional(readOnly = true)
-    public List<DepartmentPendingResponse> departments() {
+    public List<DepartmentPendingResponse> departments(Long adminId) {
+        var scope = inScope(accessService.access(adminId));
         return departmentRepository.findAll().stream()
                 .map(department -> new DepartmentPendingResponse(department.getId(), department.getName(),
-                        reportRepository.countByDepartmentIdAndStatusNot(department.getId(), ReportStatus.RESOLVED)))
+                        reportRepository.count(scope.and((root, criteria, builder) -> builder.and(
+                                builder.equal(root.get("department").get("id"), department.getId()),
+                                builder.notEqual(root.get("status"), ReportStatus.RESOLVED))))))
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<ReportResponse> list(ReportStatus status, Long departmentId, String query, int page, int size, String sort) {
-        Specification<Report> specification = (root, criteria, builder) -> {
+    public PageResponse<ReportResponse> list(Long adminId, ReportStatus status, Long departmentId, String query, int page, int size, String sort) {
+        Specification<Report> filters = (root, criteria, builder) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(builder.notEqual(root.get("status"), ReportStatus.RECEIVING));
             if (status != null) predicates.add(builder.equal(root.get("status"), status));
@@ -81,6 +108,7 @@ public class AdminReportService {
             }
             return builder.and(predicates.toArray(Predicate[]::new));
         };
+        Specification<Report> specification = inScope(accessService.access(adminId)).and(filters);
         Sort ordering = "oldest".equalsIgnoreCase(sort) ? Sort.by("submittedAt").ascending() : Sort.by("submittedAt").descending();
         var result = reportRepository.findAll(specification, PageRequest.of(page, Math.min(size, 100), ordering))
                 .map(report -> viewService.toResponse(report, false, false));
@@ -88,8 +116,8 @@ public class AdminReportService {
     }
 
     @Transactional(readOnly = true)
-    public ReportResponse detail(Long id) {
-        return viewService.toResponse(getReport(id), true, true);
+    public ReportResponse detail(Long id, Long adminId) {
+        return viewService.toResponse(getReport(id, adminId), true, true);
     }
 
     @Transactional
@@ -97,7 +125,7 @@ public class AdminReportService {
         if (status != ReportStatus.REVIEWING) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "일반 상태 변경은 REVIEWING만 허용되며 완료는 resolve API를 사용해야 합니다.");
         }
-        Report report = getReport(id);
+        Report report = getReport(id, adminId);
         ReportStatus from = report.getStatus();
         report.transitionTo(status);
         activityRepository.save(ReportActivityLog.status(report, from, status, ActorType.ADMIN, adminId,
@@ -109,7 +137,7 @@ public class AdminReportService {
 
     @Transactional
     public ReportResponse reassign(Long id, Long adminId, Long departmentId) {
-        Report report = getReport(id);
+        Report report = getReport(id, adminId);
         var department = departmentRepository.findById(departmentId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.DEPARTMENT_NOT_FOUND));
         Long fromId = report.getDepartment() == null ? null : report.getDepartment().getId();
@@ -119,8 +147,8 @@ public class AdminReportService {
     }
 
     @Transactional
-    public ReportResponse adjustRisk(Long id, RiskLevel riskLevel) {
-        Report report = getReport(id);
+    public ReportResponse adjustRisk(Long id, Long adminId, RiskLevel riskLevel) {
+        Report report = getReport(id, adminId);
         RiskLevel previousRiskLevel = report.getRiskLevel();
         report.adjustRiskLevel(riskLevel);
         highRiskNotificationService.notifyRiskEscalated(report, previousRiskLevel);
@@ -130,7 +158,7 @@ public class AdminReportService {
     @Transactional
     public ReportResponse resolve(Long id, Long adminId, String actionNote) {
         if (actionNote == null || actionNote.isBlank()) throw new BusinessException(ErrorCode.INVALID_REQUEST, "조치 내용은 필수입니다.");
-        Report report = getReport(id);
+        Report report = getReport(id, adminId);
         ReportStatus from = report.getStatus();
         report.transitionTo(ReportStatus.RESOLVED);
         activityRepository.save(ReportActivityLog.status(report, from, ReportStatus.RESOLVED,
@@ -142,26 +170,39 @@ public class AdminReportService {
     }
 
     @Transactional(readOnly = true)
-    public String reportFile(Long id) {
-        String url = getReport(id).getReportFileUrl();
+    public String reportFile(Long id, Long adminId) {
+        String url = getReport(id, adminId).getReportFileUrl();
         if (url == null) throw new BusinessException(ErrorCode.REPORT_NOT_FOUND, "생성된 보고서 파일이 없습니다.");
         return url;
     }
 
     /** 관리자 대시보드에서 현재 신고 정보로 HWP를 다시 생성한다. */
     @Transactional
-    public String generateReportFile(Long id) {
-        Report report = getReport(id);
+    public String generateReportFile(Long id, Long adminId) {
+        Report report = getReport(id, adminId);
         String url = hwpReportGenerator.generate(report);
         report.attachReportFile(url);
         return url;
     }
 
-    private Report getReport(Long id) {
-        return reportRepository.findById(id).orElseThrow(() -> new BusinessException(ErrorCode.REPORT_NOT_FOUND));
+    /** 신고를 찾고, 담당 범위 밖이면 403 */
+    private Report getReport(Long id, Long adminId) {
+        Report report = reportRepository.findById(id).orElseThrow(() -> new BusinessException(ErrorCode.REPORT_NOT_FOUND));
+        accessService.assertReport(adminId, report);
+        return report;
+    }
+
+    /** 다른 관리자 API(인사이트 등)가 범위 확인만 할 때 */
+    @Transactional(readOnly = true)
+    public void assertAccess(Long id, Long adminId) {
+        getReport(id, adminId);
     }
 
     public record StatsResponse(long received, long reviewing, long resolved, long todayNew) {}
-    public record AdminMeResponse(String name) {}
+    public record ScopeResponse(String sido, String sigungu, Long buildingId, String buildingName,
+                                String buildingSido, String buildingSigungu) {}
+    /** role: SUPER / REGION / BUILDING, scopeLabel: "전국" / "서울특별시 마포구" / 단지 이름 */
+    public record AdminMeResponse(String name, String role, String roleLabel, String scopeLabel,
+                                  String departmentName, List<ScopeResponse> scopes) {}
     public record DepartmentPendingResponse(Long id, String name, long pendingCount) {}
 }

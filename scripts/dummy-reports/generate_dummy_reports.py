@@ -25,33 +25,33 @@ eseo_units = json.loads((HERE / "eseo_units.json").read_text())
 # (제목, 설명, 위험도, 부서)
 COMMON = {
     "지하 주차장": ("B1", [
-        ("조명 소등 구간 발생", "주차 구역 조명 몇 개가 꺼져 있어 밤에 차량과 보행자가 잘 안 보여요.", "MEDIUM", "SAFETY_CENTER"),
+        ("조명 소등 구간 발생", "주차 구역 조명 몇 개가 꺼져 있어 밤에 차량과 보행자가 잘 안 보여요.", "MEDIUM", "ELECTRIC"),
         ("차량 진입 차단기 오작동", "출입 차단기가 등록 차량인데도 안 열리거나 늦게 열려서 뒤에 차가 밀려요.", "MEDIUM", "SAFETY_CENTER"),
         ("바닥 누수·물고임", "비 온 뒤 주차장 바닥에 물이 고여 미끄럽고 천장에서 물이 떨어져요.", "MEDIUM", "FACILITY"),
         ("안전봉 파손", "주차장 기둥 옆 안전봉이 부러져 날카로운 부분이 튀어나와 있어요.", "HIGH", "FACILITY"),
         ("외부 차량 무단 주차", "입주민 전용 구역에 외부 차량이 며칠째 세워져 있어요.", "LOW", "SAFETY_CENTER"),
     ]),
     "엘리베이터": (None, [
-        ("엘리베이터 문 닫힘 지연", "문이 닫히다가 다시 열리는 일이 반복돼서 오래 기다려요.", "MEDIUM", "FACILITY"),
-        ("엘리베이터 이상 소음", "운행할 때 덜컹거리는 소리와 진동이 심해요.", "HIGH", "FACILITY"),
-        ("엘리베이터 버튼 고장", "몇몇 층 버튼이 눌러도 불이 안 들어와요.", "LOW", "FACILITY"),
-        ("엘리베이터 갇힘 발생", "운행 중 멈춰서 몇 분 동안 갇혀 있었어요. 비상벨 응답도 늦었어요.", "HIGH", "FACILITY"),
+        ("엘리베이터 문 닫힘 지연", "문이 닫히다가 다시 열리는 일이 반복돼서 오래 기다려요.", "MEDIUM", "ELEVATOR"),
+        ("엘리베이터 이상 소음", "운행할 때 덜컹거리는 소리와 진동이 심해요.", "HIGH", "ELEVATOR"),
+        ("엘리베이터 버튼 고장", "몇몇 층 버튼이 눌러도 불이 안 들어와요.", "LOW", "ELEVATOR"),
+        ("엘리베이터 갇힘 발생", "운행 중 멈춰서 몇 분 동안 갇혀 있었어요. 비상벨 응답도 늦었어요.", "HIGH", "ELEVATOR"),
     ]),
     "복도·엘리베이터 홀": (None, [
-        ("복도 조명 깜빡임", "복도 센서등이 계속 깜빡이거나 안 켜져요.", "LOW", "FACILITY"),
+        ("복도 조명 깜빡임", "복도 센서등이 계속 깜빡이거나 안 켜져요.", "LOW", "ELECTRIC"),
         ("복도 적치물 방치", "복도에 택배 상자와 개인 물품이 쌓여 있어 지나가기 불편해요.", "LOW", "GENERAL_AFFAIRS"),
-        ("소화기 위치 가림", "소화기함 앞에 짐이 쌓여 있어 바로 꺼낼 수 없어요.", "HIGH", "SAFETY_CENTER"),
+        ("소화기 위치 가림", "소화기함 앞에 짐이 쌓여 있어 바로 꺼낼 수 없어요.", "HIGH", "FIRE_GAS"),
         ("복도 담배 냄새 유입", "복도에서 담배 냄새가 계속 나요. 계단실에서 피우는 것 같아요.", "LOW", "GENERAL_AFFAIRS"),
     ]),
     "공동현관": ("1", [
         ("공동현관 출입문 잠금 불량", "공동현관 문이 제대로 안 닫혀서 외부인이 그냥 들어올 수 있어요.", "HIGH", "SAFETY_CENTER"),
-        ("공동현관 인터폰 고장", "방문자 호출이 세대로 연결되지 않아요.", "MEDIUM", "FACILITY"),
+        ("공동현관 인터폰 고장", "방문자 호출이 세대로 연결되지 않아요.", "MEDIUM", "ELECTRIC"),
         ("출입카드 인식 불량", "카드를 여러 번 대야 겨우 문이 열려요.", "LOW", "SAFETY_CENTER"),
     ]),
     "분리수거장": ("1", [
-        ("분리수거장 악취", "음식물 쓰레기통이 넘쳐 악취가 심하고 벌레가 꼬여요.", "LOW", "GENERAL_AFFAIRS"),
-        ("분리수거 수거 지연", "재활용 수거가 며칠째 안 돼서 수거장이 꽉 찼어요.", "LOW", "GENERAL_AFFAIRS"),
-        ("대형 폐기물 무단 투기", "스티커 없이 버려진 가구가 통로를 막고 있어요.", "LOW", "GENERAL_AFFAIRS"),
+        ("분리수거장 악취", "음식물 쓰레기통이 넘쳐 악취가 심하고 벌레가 꼬여요.", "LOW", "SANITATION"),
+        ("분리수거 수거 지연", "재활용 수거가 며칠째 안 돼서 수거장이 꽉 찼어요.", "LOW", "SANITATION"),
+        ("대형 폐기물 무단 투기", "스티커 없이 버려진 가구가 통로를 막고 있어요.", "LOW", "SANITATION"),
     ]),
     "택배보관함": ("1", [
         ("무인 택배함 오류", "택배함 화면이 멈춰서 물건을 못 꺼내요.", "LOW", "GENERAL_AFFAIRS"),
@@ -70,7 +70,7 @@ COMMON = {
     "공동세탁실": ("2", [
         ("세탁기 고장", "세탁기 한 대가 돌아가다 멈추고 에러가 떠요.", "LOW", "FACILITY"),
         ("세탁실 배수구 역류", "세탁실 바닥 배수구에서 물이 역류해 바닥이 젖어 있어요.", "MEDIUM", "FACILITY"),
-        ("건조기 과열 냄새", "건조기를 돌리면 타는 냄새가 나요.", "HIGH", "FACILITY"),
+        ("건조기 과열 냄새", "건조기를 돌리면 타는 냄새가 나요.", "HIGH", "FIRE_GAS"),
     ]),
     "옥상정원": ("R", [
         ("옥상 데크 들뜸", "목재 데크가 들떠서 걸려 넘어질 뻔했어요.", "LOW", "FACILITY"),
@@ -84,12 +84,14 @@ UNIT = [
     ("결로·곰팡이 발생", "창문 주변과 벽 모서리에 결로가 생기고 곰팡이가 번지고 있어요.", "MEDIUM", "FACILITY", ["방", "침실", "거실"]),
     ("보일러 온수 불량", "온수가 미지근하게 나오거나 중간에 찬물로 바뀌어요.", "MEDIUM", "FACILITY", ["욕실", "주방"]),
     ("빌트인 에어컨 물샘", "에어컨을 켜면 실내기에서 물이 떨어져요.", "MEDIUM", "FACILITY", ["방", "거실", "침실"]),
-    ("현관 도어락 오작동", "도어락이 비밀번호를 맞게 눌러도 안 열릴 때가 있어요.", "HIGH", "SAFETY_CENTER", ["현관"]),
+    ("현관 도어락 오작동", "도어락이 비밀번호를 맞게 눌러도 안 열릴 때가 있어요.", "HIGH", "ELECTRIC", ["현관"]),
     ("주방 수전 누수", "싱크대 수전 아래에서 물이 조금씩 새요.", "LOW", "FACILITY", ["주방"]),
     ("방충망 파손", "방충망이 찢어져서 벌레가 들어와요.", "LOW", "FACILITY", ["방", "침실", "거실"]),
     ("층간소음", "밤늦게 윗집에서 쿵쿵 소리가 계속 나요.", "LOW", "GENERAL_AFFAIRS", ["방", "침실", "거실"]),
     ("배수구 악취", "욕실 배수구에서 하수구 냄새가 올라와요.", "LOW", "FACILITY", ["욕실"]),
-    ("전기 콘센트 스파크", "콘센트에 플러그를 꽂을 때 불꽃이 튀어요.", "HIGH", "FACILITY", ["방", "주방", "거실"]),
+    ("가스 냄새", "주방 가스레인지 쪽에서 가스 냄새가 계속 나요.", "HIGH", "FIRE_GAS", ["주방"]),
+    ("바퀴벌레 출몰", "싱크대와 욕실 쪽에 바퀴벌레가 자주 나와요. 방역이 필요해요.", "LOW", "SANITATION", ["주방", "욕실"]),
+    ("전기 콘센트 스파크", "콘센트에 플러그를 꽂을 때 불꽃이 튀어요.", "HIGH", "ELECTRIC", ["방", "주방", "거실"]),
 ]
 
 OUTDOOR = [
@@ -231,9 +233,14 @@ for b in buildings:
             r.update(indoor=False, space_name=None)
             where = place
         status = status_for(days)
+        resolved_at = None
         if RNG.random() < 0.12:  # AI 판단과 다르게 위험도가 한 단계 달라지는 경우
             risk = {"LOW": "MEDIUM", "MEDIUM": RNG.choice(["LOW", "HIGH"]), "HIGH": "MEDIUM"}[risk]
-        r.update(seq=seq, at=at, status=status, risk=risk, dept=dept, title=title, desc=desc,
+        if status == "RESOLVED":
+            # 위험도가 높을수록 빨리 처리된다 (일 단위)
+            span = {"HIGH": (0.3, 5), "MEDIUM": (1, 14), "LOW": (2, 30)}[risk]
+            resolved_at = min(at + timedelta(days=RNG.uniform(*span)), NOW)
+        r.update(seq=seq, at=at, status=status, risk=risk, dept=dept, title=title, desc=desc, resolved=resolved_at,
                  location=f"{b['name']} {where}"[:200])
         rows.append(r)
 
@@ -247,11 +254,11 @@ print("WHERE NOT EXISTS (SELECT 1 FROM users WHERE provider = 'GOOGLE' AND provi
 cols = ("tracking_id, summary, description, status, risk_level, risk_level_source, department_id, reporter_id, "
         "reporter_type, building_id, building_name_snapshot, is_indoor, floor, room, location_description, "
         "space_type, space_code, space_name, unit_type, scene_id, pin_x, pin_y, pin_z, pin_label, "
-        "submitted_at, created_at, updated_at")
+        "submitted_at, created_at, updated_at, resolved_at")
 CHUNK = 200
 for start in range(0, len(rows), CHUNK):
     print("WITH v(seq, building, title, descr, status, risk, dept, indoor, floor, room, location, space_type, "
-          "space_code, space_name, unit_type, scene_id, px, py, pz, pin_label, at) AS (VALUES")
+          "space_code, space_name, unit_type, scene_id, px, py, pz, pin_label, at, resolved) AS (VALUES")
     lines = []
     for r in rows[start:start + CHUNK]:
         px, py, pz = r["pin"] or (None, None, None)
@@ -261,6 +268,7 @@ for start in range(0, len(rows), CHUNK):
             q(r["space_type"]), q(r["space_code"]), q(r["space_name"]), q(r["unit_type"]), q(r["scene_id"]),
             f"{q(px)}::float8", f"{q(py)}::float8", f"{q(pz)}::float8", q(r["pin_label"]),
             q(r["at"].isoformat()) + "::timestamptz",
+            (q(r["resolved"].isoformat()) if r["resolved"] else "NULL") + "::timestamptz",
         ]) + ")")
     print(",\n".join(lines))
     print(")")
@@ -268,6 +276,6 @@ for start in range(0, len(rows), CHUNK):
     print("SELECT 'DM-' || lpad(v.seq::text, 6, '0'), v.title, v.descr, v.status, v.risk, 'AI', d.id,")
     print("       (SELECT id FROM users WHERE provider = 'GOOGLE' AND provider_id = 'dummy-reporter'), 'REAL_NAME',")
     print("       b.id, b.name, v.indoor, v.floor, v.room, v.location, v.space_type, v.space_code, v.space_name,")
-    print("       v.unit_type, v.scene_id, v.px, v.py, v.pz, v.pin_label, v.at, v.at, v.at")
+    print("       v.unit_type, v.scene_id, v.px, v.py, v.pz, v.pin_label, v.at, v.at, COALESCE(v.resolved, v.at), v.resolved")
     print("FROM v JOIN buildings b ON b.name = v.building JOIN departments d ON d.code = v.dept;")
 print("COMMIT;")
