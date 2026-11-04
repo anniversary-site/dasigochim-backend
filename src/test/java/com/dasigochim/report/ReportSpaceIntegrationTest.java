@@ -130,6 +130,15 @@ class ReportSpaceIntegrationTest {
     }
 
     @Test
+    void unitsAreListedByFloorThenHo() {
+        unitRepository.save(new BuildingUnit(housing, null, "301", "3", "52", "unit_42-type"));
+        unitRepository.save(new BuildingUnit(housing, null, "2001", "20", "37", "unit_37-type"));
+        assertThat(buildingService.units(housing.getId()))
+                .extracting(BuildingService.UnitResponse::ho)
+                .containsExactly("301", "1203", "2001");
+    }
+
+    @Test
     void regionsListEveryRegionEvenWithoutHousing() {
         regionRepository.save(new Region("서울특별시", "종로구", 0));
         regionRepository.save(new Region("서울특별시", "마포구", 1));

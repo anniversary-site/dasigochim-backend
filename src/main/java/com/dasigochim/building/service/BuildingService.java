@@ -59,6 +59,26 @@ public class BuildingService {
         return spaceRepository.findAllByBuildingIdOrderBySortOrder(buildingId).stream().map(SpaceResponse::from).toList();
     }
 
+    /** 단지의 세대 전체(동 · 층 · 호수 순). 신고 화면에서 호수를 입력하는 동안 바로 확인하는 데 쓴다. */
+    public List<UnitResponse> units(Long buildingId) {
+        getEntity(buildingId);
+        return unitRepository.findAllByBuildingId(buildingId).stream()
+                .sorted(java.util.Comparator
+                        .comparing((BuildingUnit unit) -> unit.getDong() == null ? "" : unit.getDong())
+                        .thenComparingInt(unit -> numberOrMax(unit.getFloor()))
+                        .thenComparing(BuildingUnit::getHo))
+                .map(UnitResponse::from)
+                .toList();
+    }
+
+    private static int numberOrMax(String value) {
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            return Integer.MAX_VALUE;
+        }
+    }
+
     public UnitResponse lookupUnit(Long buildingId, String dong, String ho) {
         return UnitResponse.from(findUnit(buildingId, dong, ho));
     }

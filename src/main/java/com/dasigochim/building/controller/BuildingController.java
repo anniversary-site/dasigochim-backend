@@ -34,6 +34,11 @@ public class BuildingController {
         return ApiResponse.ok(buildingService.spaces(id));
     }
 
+    @GetMapping("/{id}/units")
+    ApiResponse<List<BuildingService.UnitResponse>> units(@PathVariable Long id) {
+        return ApiResponse.ok(buildingService.units(id));
+    }
+
     @GetMapping("/{id}/units/lookup")
     ApiResponse<BuildingService.UnitResponse> unit(@PathVariable Long id,
                                                   @RequestParam(required = false) String dong,
