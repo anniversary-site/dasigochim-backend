@@ -5,6 +5,8 @@
 
 - buildings.json : 단지 목록 (이름 · 시군구 · 공급단계 · 3D 여부). 단지 id 대신 이름으로 찾는다.
 - eseo_units.json: 공덕역 e·seo 세대 표 중 세대 3D 평면이 있는 세대.
+- eseo_50_values.sql: 팀에서 만든 공덕역 e·seo 민원 50건 (원문 · 공간 유형 · 근본 요구 · 근본 요구 코드 ·
+  표면 요청을 description 에 JSON 으로 담았다). 공덕역은 무작위로 만들지 않고 이 50건을 그대로 쓴다.
 - 시드를 고정해 몇 번을 돌려도 같은 SQL 이 나온다.
 - 만든 민원은 tracking_id 가 'DM-' 로 시작한다. clear_dummy_reports.sql 로 지운다.
 - Flyway 마이그레이션이 아니다. 운영 DB 에 자동으로 들어가지 않는다.
@@ -150,7 +152,7 @@ def unit_room_pin(scene, wanted):
 # ── 단지별 민원 규모 ───────────────────────────────────────────────────────
 def volume(b):
     if b["has3d"]:
-        return 46
+        return 0  # 공덕역 e·seo 는 eseo_50_values.sql 의 50건을 쓴다
     if b["status"] == "입주":
         tier = RNG.choices(["많음", "보통", "적음", "없음"], weights=[15, 35, 35, 15])[0]
         return {"많음": RNG.randint(18, 35), "보통": RNG.randint(6, 14),
@@ -245,7 +247,7 @@ for b in buildings:
         rows.append(r)
 
 print("-- 생성: scripts/dummy-reports/generate_dummy_reports.py (직접 고치지 말 것)")
-print(f"-- 민원 {len(rows)}건 · tracking_id 'DM-' 접두어 · 로컬·시연용, 운영 DB 에 넣지 말 것")
+print(f"-- 민원 {len(rows)}건 + 공덕역 e·seo 50건(eseo_50_values.sql) · tracking_id 'DM-' 접두어 · 로컬·시연용, 운영 DB 에 넣지 말 것")
 print("BEGIN;")
 print("DELETE FROM reports WHERE tracking_id LIKE 'DM-%';")
 print("INSERT INTO users (provider, provider_id, name)")
@@ -271,6 +273,25 @@ for start in range(0, len(rows), CHUNK):
             (q(r["resolved"].isoformat()) if r["resolved"] else "NULL") + "::timestamptz",
         ]) + ")")
     print(",\n".join(lines))
+    print(")")
+    print(f"INSERT INTO reports ({cols})")
+    print("SELECT 'DM-' || lpad(v.seq::text, 6, '0'), v.title, v.descr, v.status, v.risk, 'AI', d.id,")
+    print("       (SELECT id FROM users WHERE provider = 'GOOGLE' AND provider_id = 'dummy-reporter'), 'REAL_NAME',")
+    print("       b.id, b.name, v.indoor, v.floor, v.room, v.location, v.space_type, v.space_code, v.space_name,")
+    print("       v.unit_type, v.scene_id, v.px, v.py, v.pz, v.pin_label, v.at, v.at, COALESCE(v.resolved, v.at), v.resolved")
+    print("FROM v JOIN buildings b ON b.name = v.building JOIN departments d ON d.code = v.dept;")
+# 공덕역 e·seo 50건 — 팀에서 만든 행을 그대로 넣는다. seq 는 무작위 행과 겹치지 않게 100000 부터.
+import re
+eseo_rows = []
+for line in (HERE / "eseo_50_values.sql").read_text().splitlines():
+    m = re.match(r"\s*\((\d+),(.*)\),?\s*$", line)
+    if m:
+        eseo_rows.append(f"  ({100000 + int(m.group(1))},{m.group(2)})")
+if eseo_rows:
+    print(f"-- 공덕역 e·seo {len(eseo_rows)}건 (eseo_50_values.sql)")
+    print("WITH v(seq, building, title, descr, status, risk, dept, indoor, floor, room, location, space_type, "
+          "space_code, space_name, unit_type, scene_id, px, py, pz, pin_label, at, resolved) AS (VALUES")
+    print(",\n".join(eseo_rows))
     print(")")
     print(f"INSERT INTO reports ({cols})")
     print("SELECT 'DM-' || lpad(v.seq::text, 6, '0'), v.title, v.descr, v.status, v.risk, 'AI', d.id,")
